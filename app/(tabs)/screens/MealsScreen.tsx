@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, TextInput } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -13,6 +13,7 @@ type Meal = {
   id: string;
   title: string;
   imageUrl: string;
+  comments?: string[]; // Thêm thuộc tính comment cho từng món ăn
 };
 
 type RootStackParamList = {
@@ -26,7 +27,7 @@ const CATEGORIES: Category[] = [
   { id: '3', title: 'Hamburgers', imageUrl: 'https://via.placeholder.com/150' },
   { id: '4', title: 'German', imageUrl: 'https://via.placeholder.com/150' },
   { id: '5', title: 'Light & Lovely', imageUrl: 'https://via.placeholder.com/150' },
-  { id: '6', title: 'Exotic', imageUrl: 'https://via.placeholder.com/150' },  
+  { id: '6', title: 'Exotic', imageUrl: 'https://via.placeholder.com/150' },
 ];
 
 const MEALS: Record<string, Meal[]> = {
@@ -73,9 +74,18 @@ const MealsScreen = () => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const { categoryId } = route.params;
 
-  const selectedCategory = CATEGORIES.find(cat => cat.id === categoryId);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [comment, setComment] = useState(''); // Trạng thái để lưu bình luận
+  const [comments, setComments] = useState<Record<string, string[]>>({}); // Trạng thái lưu bình luận của từng món ăn
+
+  const selectedCategory = CATEGORIES.find((cat) => cat.id === categoryId);
 
   const meals = MEALS[categoryId] || [];
+
+  // Lọc món ăn dựa trên từ khóa tìm kiếm
+  const filteredMeals = meals.filter((meal) =>
+    meal.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const renderMealItem = ({ item }: { item: Meal }) => {
     return (
@@ -85,17 +95,54 @@ const MealsScreen = () => {
       >
         <Image source={{ uri: item.imageUrl }} style={styles.image} />
         <Text style={styles.title}>{item.title}</Text>
+
+        {/* Phần bình luận */}
+        <FlatList
+          data={comments[item.id] || []}
+          keyExtractor={(comment, index) => index.toString()}
+          renderItem={({ item }) => <Text style={styles.commentText}>- {item}</Text>}
+          style={styles.commentList}
+        />
+
+        <TextInput
+          placeholder="Nhập bình luận"
+          value={comment}
+          onChangeText={setComment}
+          style={styles.commentInput}
+        />
+        <TouchableOpacity
+          style={styles.commentButton}
+          onPress={() => {
+            if (comment.trim()) {
+              setComments((prev) => ({
+                ...prev,
+                [item.id]: [...(prev[item.id] || []), comment],
+              }));
+              setComment(''); // Xóa nội dung nhập sau khi thêm bình luận
+            }
+          }}
+        >
+          <Text style={styles.commentButtonText}>Gửi bình luận</Text>
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.categoryInfo}>Category ID: {categoryId}</Text>
+      <Text style={styles.categoryInfo}>ID danh mục: {categoryId}</Text>
       <Text style={styles.categoryTitle}>{selectedCategory?.title}</Text>
-      
+
+      {/* Ô tìm kiếm */}
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Tìm món ăn..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
+
       <FlatList
-        data={meals}
+        data={filteredMeals}
         keyExtractor={(item) => item.id}
         renderItem={renderMealItem}
       />
@@ -134,6 +181,37 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginVertical: 10,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 15,
+  },
+  commentList: {
+    marginVertical: 10,
+  },
+  commentText: {
+    fontSize: 14,
+    color: '#555',
+  },
+  commentInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 8,
+    borderRadius: 5,
+    marginVertical: 10,
+  },
+  commentButton: {
+    backgroundColor: '#007bff',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  commentButtonText: {
+    color: '#fff',
+    fontSize: 16,
   },
 });
 
